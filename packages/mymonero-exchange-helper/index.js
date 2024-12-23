@@ -1,30 +1,49 @@
 const HtmlHelper = require("./HtmlHelper");
 const WalletHelper = require("./WalletHelper")
 const html = require("./HtmlHelper")
-const EventListeners = require("./EventListeners")
 const TimerHelper = require('./TimerHelper');
 const CurrencyMetadata = require('./CurrencyMetadata')
 const monero_amount_format_utils = require('@mymonero/mymonero-money-format')
 const JSBigInt = require('@mymonero/mymonero-bigint')
 const ErrorHelper = require("./ErrorHelper")
 const InitialiseExchange = require("./initialiseExchange")
-const ExchangeFunctions = require("@mymonero/mymonero-exchange")
-const exchangeFunctions = new ExchangeFunctions();
 
 class ExchangeHelper {
     // We declare these in this module so that we don't tightly couple currencies to the REST API module
     
-    constructor() {
+    constructor(exchange_name="mymonero") {
         // Assignment to `this` variable is so that we can invoke these functions using an instance of this class in a public fashion
-        this.supportedOutCurrencies = ["BTC", "ETH", "LTC"]
-        this.supportedInCurrencies = ["XMR"];
+        if (exchange_name === "mymonero") {
+            this.exchange_name = "mymonero";
+            this.supportedOutCurrencies = ["BTC", "ETH", "LTC"]
+            this.supportedInCurrencies = ["XMR"];
+
+            // very very ugly but solves the problem of global variables overriding each other
+            const ExchangeFunctions = require("@mymonero/mymonero-exchange")
+            this.exchangeFunctions = new ExchangeFunctions()
+
+            const EventListeners = require("./EventListeners")
+            this.eventListeners = EventListeners;
+            console.log("ExchangeHelper: Using MyMonero exchange functions")
+        }
+        else if (exchange_name === "majesticbank") {
+            this.exchange_name = "majesticbank";
+            this.supportedOutCurrencies = ["BTC", "LTC", "WOW", "BCH", "FIRO"]
+            this.supportedInCurrencies = ["XMR"];
+
+            const ExchangeFunctionsMajesticBank = require("@mymonero/mymonero-exchange-majesticbank")
+            this.exchangeFunctions = new ExchangeFunctionsMajesticBank()
+
+            const EventListenersMajesticBank = require("./EventListenersMajesticBank")
+            this.eventListeners = EventListenersMajesticBank
+            console.log("ExchangeHelper: Using MajesticBank exchange functions")
+        }
         this.baseForm = "";
 
         // Fetch form we'll insert into the content view's innerHTML
-        
+
         this.htmlHelper = new HtmlHelper();
         this.baseForm = this.htmlHelper.getBaseForm();
-        this.eventListeners = EventListeners;
         this.timerHelper = TimerHelper;
         this.currencyMetadata = CurrencyMetadata;
         this.errorHelper = ErrorHelper;
@@ -34,7 +53,6 @@ class ExchangeHelper {
         this.renderWalletSelector = this.renderWalletSelector;
         this.initialiseExchangeHelper = InitialiseExchange;
         this.doInit = this.doInit;
-        this.exchangeFunctions = exchangeFunctions;
         this.handleSendFundsResponseCallback = this.handleSendFundsResponseCallback;
         this.sendFundsValidationStatusCallback = this.sendFundsValidationStatusCallback;
 
@@ -260,27 +278,27 @@ class ExchangeHelper {
     }
 
     // TODO: Pass this function parameters, use those parameters, determine runtime context, open based on runtime context (shell.openExternal for Electron, window.location for web, etc)
-    openClickableLink(event, context) {
-        // We need to determine whether we're invoking this via Electron or via a browser, and adjust accordingly
-        let referrer_id = event.srcElement.getAttribute("referrer_id");
-        let url = event.srcElement.getAttribute("url");
-        let paramStr = event.srcElement.getAttribute("param_str");
-        if (typeof(context.shell) !== "undefined") { // Electron passes the shell variable as part of context
-            if (referrer_id.length > 0) {
-                let urlToOpen = url + "?" + paramStr + "=" + referrer_id;
-                context.shell.openExternal(urlToOpen);
-            } else {
-                context.shell.openExternal("https://localmonero.co");
-            }
-        } else { // Web (and Capacitor?) codebase
-            if (referrer_id.length > 0) {
-                let urlToOpen = url + "?" + paramStr + "=" + referrer_id;
-                window.open(urlToOpen);
-            } else {
-                window.open("https://localmonero.co");
-            }
-        }
-    }
+    // openClickableLink(event, context) {
+    //     // We need to determine whether we're invoking this via Electron or via a browser, and adjust accordingly
+    //     let referrer_id = event.srcElement.getAttribute("referrer_id");
+    //     let url = event.srcElement.getAttribute("url");
+    //     let paramStr = event.srcElement.getAttribute("param_str");
+    //     if (typeof(context.shell) !== "undefined") { // Electron passes the shell variable as part of context
+    //         if (referrer_id.length > 0) {
+    //             let urlToOpen = url + "?" + paramStr + "=" + referrer_id;
+    //             context.shell.openExternal(urlToOpen);
+    //         } else {
+    //             context.shell.openExternal("https://localmonero.co");
+    //         }
+    //     } else { // Web (and Capacitor?) codebase
+    //         if (referrer_id.length > 0) {
+    //             let urlToOpen = url + "?" + paramStr + "=" + referrer_id;
+    //             window.open(urlToOpen);
+    //         } else {
+    //             window.open("https://localmonero.co");
+    //         }
+    //     }
+    // }
 }
 
 module.exports = ExchangeHelper
